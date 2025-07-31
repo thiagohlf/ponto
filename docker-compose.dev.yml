@@ -1,0 +1,31 @@
+version: '3.8'
+
+# Override para desenvolvimento
+services:
+  app:
+    build:
+      target: development
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - LOG_LEVEL=debug
+    volumes:
+      - ./:/var/www/html:cached
+      - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+
+  nginx:
+    volumes:
+      - ./:/var/www/html:cached
+
+  mysql:
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ponto_dev
+      MYSQL_USER: ponto_dev
+      MYSQL_PASSWORD: ponto_dev
+
+  redis:
+    ports:
+      - "6379:6379"
