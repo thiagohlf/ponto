@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 
 // Página inicial - redireciona para dashboard se autenticado
 Route::get('/', function () {
-    return auth()->check() ? redirect()->route('dashboard') : view('welcome');
+    return auth()->user() ? redirect()->route('dashboard') : view('welcome');
 });
 
 // Dashboard principal
@@ -27,7 +27,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 
 // Rotas protegidas por autenticação
 Route::middleware(['auth', 'verified'])->group(function () {
-    
+
     // Perfil do usuário (todos podem acessar)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -43,20 +43,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('departments', DepartmentController::class);
     });
 
-    // === FUNCIONÁRIOS === (Administradores, RH e Supervisores)
-    Route::middleware(['permission:gerenciar_funcionarios|visualizar_funcionarios'])->group(function () {
-        Route::get('employees', [EmployeeController::class, 'index'])->name('employees.index');
-        Route::get('employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
-        
-        // Rotas específicas de funcionários
-        Route::prefix('employees/{employee}')->name('employees.')->group(function () {
-            Route::get('/time-records', [EmployeeController::class, 'timeRecords'])->name('time-records');
-            Route::get('/absences', [EmployeeController::class, 'absences'])->name('absences');
-            Route::get('/overtime', [EmployeeController::class, 'overtime'])->name('overtime');
-        });
-    });
-
-    // Criação, edição e exclusão de funcionários (apenas admin e RH)
+    // === FUNCIONÁRIOS === 
+    // Criação, edição e exclusão de funcionários (apenas admin e RH) - DEVE VIR PRIMEIRO
     Route::middleware(['permission:gerenciar_funcionarios'])->group(function () {
         Route::get('employees/create', [EmployeeController::class, 'create'])->name('employees.create');
         Route::post('employees', [EmployeeController::class, 'store'])->name('employees.store');
@@ -65,22 +53,37 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
     });
 
+    // Visualização de funcionários (Administradores, RH e Supervisores)
+    Route::middleware(['permission:gerenciar_funcionarios|visualizar_funcionarios'])->group(function () {
+        Route::get('employees', [EmployeeController::class, 'index'])->name('employees.index');
+        Route::get('employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
+
+        // Rotas específicas de funcionários
+        Route::prefix('employees/{employee}')->name('employees.')->group(function () {
+            Route::get('/time-records', [EmployeeController::class, 'timeRecords'])->name('time-records');
+            Route::get('/absences', [EmployeeController::class, 'absences'])->name('absences');
+            Route::get('/overtime', [EmployeeController::class, 'overtime'])->name('overtime');
+        });
+    });
+
     // === RELÓGIOS DE PONTO === (Administradores e Técnicos)
     Route::middleware(['permission:gerenciar_relogios'])->group(function () {
         Route::resource('time-clocks', TimeClockController::class);
     });
 
     // === REGISTROS DE PONTO ===
+    // Solicitação de ajuste (todos os usuários autenticados podem solicitar) - deve vir antes das rotas com parâmetros
+    Route::get('time-records/create', [TimeRecordController::class, 'create'])->name('time-records.create');
+    Route::post('time-records', [TimeRecordController::class, 'store'])->name('time-records.store');
+
     // Visualização (todos os usuários autenticados)
     Route::middleware(['permission:visualizar_registros_ponto'])->group(function () {
         Route::get('time-records', [TimeRecordController::class, 'index'])->name('time-records.index');
         Route::get('time-records/{timeRecord}', [TimeRecordController::class, 'show'])->name('time-records.show');
     });
 
-    // Criação e edição (RH e Supervisores)
+    // Edição e exclusão (apenas RH e Supervisores)
     Route::middleware(['permission:gerenciar_registros_ponto'])->group(function () {
-        Route::get('time-records/create', [TimeRecordController::class, 'create'])->name('time-records.create');
-        Route::post('time-records', [TimeRecordController::class, 'store'])->name('time-records.store');
         Route::get('time-records/{timeRecord}/edit', [TimeRecordController::class, 'edit'])->name('time-records.edit');
         Route::put('time-records/{timeRecord}', [TimeRecordController::class, 'update'])->name('time-records.update');
         Route::delete('time-records/{timeRecord}', [TimeRecordController::class, 'destroy'])->name('time-records.destroy');
@@ -91,6 +94,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('time-records/{timeRecord}/approve', [TimeRecordController::class, 'approve'])->name('time-records.approve');
         Route::patch('time-records/{timeRecord}/reject', [TimeRecordController::class, 'reject'])->name('time-records.reject');
     });
+
+    // Download de anexos (usuários podem baixar seus próprios anexos ou supervisores podem baixar de qualquer um)
+    Route::get('time-records/{timeRecord}/attachment/{filename}', [TimeRecordController::class, 'downloadAttachment'])->name('time-records.attachment.download');
 
     // === ESCALAS DE TRABALHO === (RH e Supervisores)
     Route::middleware(['permission:gerenciar_escalas'])->group(function () {
@@ -146,16 +152,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['permission:visualizar_relatorios'])->group(function () {
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');
-            
+
             // Relatórios específicos
             Route::get('/time-records', [ReportController::class, 'timeRecords'])->name('time-records');
             Route::get('/attendance-summary', [ReportController::class, 'attendanceSummary'])->name('attendance-summary');
             Route::get('/overtime', [ReportController::class, 'overtime'])->name('overtime');
             Route::get('/absences', [ReportController::class, 'absences'])->name('absences');
-            
+
             // Exportações (apenas RH e Administradores)
             Route::middleware(['permission:exportar_relatorios'])->group(function () {
                 Route::get('/export/time-records', [ReportController::class, 'exportTimeRecords'])->name('export.time-records');
+                Route::get('/pdf/timesheet', [ReportController::class, 'generateTimesheetPDF'])->name('pdf.timesheet');
+                Route::get('/pdf/all-timesheets', [ReportController::class, 'generateAllTimesheetsPDF'])->name('pdf.all-timesheets');
             });
         });
     });
@@ -175,9 +183,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/config', [App\Http\Controllers\SystemConfigController::class, 'index'])->name('config.index');
         Route::put('/config', [App\Http\Controllers\SystemConfigController::class, 'update'])->name('config.update');
         Route::get('/config/toggle-registration', [App\Http\Controllers\SystemConfigController::class, 'toggleRegistration'])->name('config.toggle-registration');
+        
+        // Rotas de backup
+        Route::post('/backup/create', [App\Http\Controllers\SystemConfigController::class, 'createBackup'])->name('backup.create');
+        Route::get('/backup/list', [App\Http\Controllers\SystemConfigController::class, 'listBackups'])->name('backup.list');
+        Route::get('/backup/download/{filename}', [App\Http\Controllers\SystemConfigController::class, 'downloadBackup'])->name('backup.download');
     });
 });
 
 
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

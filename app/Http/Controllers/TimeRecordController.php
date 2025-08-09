@@ -19,10 +19,25 @@ class TimeRecordController extends Controller
     public function index(Request $request): View
     {
         $query = TimeRecord::with(['employee', 'timeClock']);
+        $user = auth()->user();
+
+        // Se o usuário não for supervisor ou acima, só pode ver seus próprios registros
+        if (!$user->isSupervisor() && !$user->isHR() && !$user->isAdmin()) {
+            $employee = $user->employee;
+            if ($employee) {
+                $query->where('employee_id', $employee->id);
+            } else {
+                // Se não tem funcionário associado, não pode ver nenhum registro
+                $query->whereRaw('1 = 0');
+            }
+        }
 
         // Filtros
         if ($request->filled('employee_id')) {
-            $query->where('employee_id', $request->employee_id);
+            // Se não for supervisor ou acima, ignora o filtro de funcionário
+            if ($user->isSupervisor() || $user->isHR() || $user->isAdmin()) {
+                $query->where('employee_id', $request->employee_id);
+            }
         }
 
         if ($request->filled('time_clock_id')) {
@@ -46,7 +61,14 @@ class TimeRecordController extends Controller
         }
 
         $timeRecords = $query->latest('full_datetime')->paginate(20);
-        $employees = Employee::active()->get();
+
+        // Para funcionários comuns, não mostrar lista de funcionários no filtro
+        if ($user->isSupervisor() || $user->isHR() || $user->isAdmin()) {
+            $employees = Employee::active()->get();
+        } else {
+            $employees = collect(); // Lista vazia
+        }
+
         $timeClocks = TimeClock::active()->get();
 
         return view('time-records.index', compact('timeRecords', 'employees', 'timeClocks'));
@@ -57,7 +79,20 @@ class TimeRecordController extends Controller
      */
     public function create(): View
     {
-        $employees = Employee::active()->get();
+        $user = auth()->user();
+
+        // Se o usuário não for supervisor ou acima, só pode criar registros para si mesmo
+        if (!$user->isSupervisor() && !$user->isHR() && !$user->isAdmin()) {
+            $employee = $user->employee;
+            if (!$employee) {
+                return redirect()->route('time-records.index')
+                    ->with('error', 'Funcionário não encontrado. Entre em contato com o RH.');
+            }
+            $employees = collect([$employee]); // Apenas o próprio funcionário
+        } else {
+            $employees = Employee::active()->get();
+        }
+
         $timeClocks = TimeClock::active()->get();
 
         return view('time-records.create', compact('employees', 'timeClocks'));
@@ -68,6 +103,8 @@ class TimeRecordController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $user = auth()->user();
+
         $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
             'time_clock_id' => 'nullable|exists:time_clocks,id',
@@ -77,29 +114,103 @@ class TimeRecordController extends Controller
             'identification_method' => 'required|in:biometric,rfid,pin,facial,manual',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
-            'observations' => 'nullable|string|max:1000',
-            'change_justification' => 'nullable|string|max:1000',
+            'change_justification' => 'required|string|max:1000',
+            'attachments.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:5120', // 5MB max por arquivo
         ]);
 
+        // Se o usuário não for supervisor ou acima, só pode criar registros para si mesmo
+        if (!$user->isSupervisor() && !$user->isHR() && !$user->isAdmin()) {
+            $employee = $user->employee;
+            if (!$employee || $validated['employee_id'] != $employee->id) {
+                return redirect()->route('time-records.create')
+                    ->with('error', 'Você só pode criar registros para si mesmo.');
+            }
+        }
+
         // Criar timestamp completo
-        $fullDatetime = Carbon::createFromFormat('Y-m-d H:i', 
-            $validated['record_date'] . ' ' . $validated['record_time']);
+        $fullDatetime = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $validated['record_date'] . ' ' . $validated['record_time']
+        );
 
         // Gerar NSR único
         $nsr = $this->generateNSR();
 
+        // Processar anexos se houver
+        $attachments = [];
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('time-records/attachments', $filename, 'public');
+                
+                $attachments[] = [
+                    'original_name' => $file->getClientOriginalName(),
+                    'filename' => $filename,
+                    'path' => $path,
+                    'size' => $file->getSize(),
+                    'mime_type' => $file->getMimeType(),
+                    'uploaded_at' => now()->toISOString(),
+                ];
+            }
+        }
+
+        // Determinar status baseado no usuário e método
+        $isManualRequest = !$user->isSupervisor() && !$user->isHR() && !$user->isAdmin();
+        $status = ($validated['identification_method'] === 'manual' || $isManualRequest) ? 'pending_approval' : 'valid';
+
+        // Remover attachments dos dados validados para evitar erro
+        $timeRecordData = $validated;
+        unset($timeRecordData['attachments']);
+
         $timeRecord = TimeRecord::create([
-            ...$validated,
+            ...$timeRecordData,
             'full_datetime' => $fullDatetime,
             'nsr' => $nsr,
             'hash_verification' => $this->generateHash($validated, $nsr),
-            'status' => $validated['identification_method'] === 'manual' ? 'pending_approval' : 'valid',
-            'changed_by' => $validated['identification_method'] === 'manual' ? auth()->id() : null,
-            'changed_at' => $validated['identification_method'] === 'manual' ? now() : null,
+            'status' => $status,
+            'attachments' => $attachments,
+            'changed_by' => ($status === 'pending_approval') ? auth()->id() : null,
+            'changed_at' => ($status === 'pending_approval') ? now() : null,
         ]);
 
+        $message = $isManualRequest
+            ? 'Solicitação de ajuste de ponto enviada para aprovação!'
+            : 'Registro de ponto criado com sucesso!';
+
         return redirect()->route('time-records.show', $timeRecord)
-            ->with('success', 'Registro de ponto criado com sucesso!');
+            ->with('success', $message);
+    }
+
+    /**
+     * Download attachment file
+     */
+    public function downloadAttachment(TimeRecord $timeRecord, $filename)
+    {
+        $user = auth()->user();
+        
+        // Verificar se o usuário tem permissão para ver este registro
+        if (!$user->isSupervisor() && !$user->isHR() && !$user->isAdmin()) {
+            $employee = $user->employee;
+            if (!$employee || $timeRecord->employee_id !== $employee->id) {
+                abort(403, 'Você não tem permissão para acessar este arquivo.');
+            }
+        }
+
+        // Verificar se o arquivo existe nos anexos do registro
+        $attachments = $timeRecord->attachments ?? [];
+        $attachment = collect($attachments)->firstWhere('filename', $filename);
+        
+        if (!$attachment) {
+            abort(404, 'Arquivo não encontrado.');
+        }
+
+        $filePath = storage_path('app/public/' . $attachment['path']);
+        
+        if (!file_exists($filePath)) {
+            abort(404, 'Arquivo não encontrado no sistema.');
+        }
+
+        return response()->download($filePath, $attachment['original_name']);
     }
 
     /**
@@ -107,6 +218,16 @@ class TimeRecordController extends Controller
      */
     public function show(TimeRecord $timeRecord): View
     {
+        $user = auth()->user();
+
+        // Se o usuário não for supervisor ou acima, só pode ver seus próprios registros
+        if (!$user->isSupervisor() && !$user->isHR() && !$user->isAdmin()) {
+            $employee = $user->employee;
+            if (!$employee || $timeRecord->employee_id !== $employee->id) {
+                abort(403, 'Você não tem permissão para visualizar este registro.');
+            }
+        }
+
         $timeRecord->load(['employee', 'timeClock', 'changedBy']);
 
         return view('time-records.show', compact('timeRecord'));
@@ -142,8 +263,10 @@ class TimeRecordController extends Controller
         }
 
         // Criar novo timestamp
-        $fullDatetime = Carbon::createFromFormat('Y-m-d H:i', 
-            $validated['record_date'] . ' ' . $validated['record_time']);
+        $fullDatetime = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $validated['record_date'] . ' ' . $validated['record_time']
+        );
 
         $timeRecord->update([
             'record_date' => $validated['record_date'],
@@ -288,7 +411,7 @@ class TimeRecordController extends Controller
     {
         $lastRecord = TimeRecord::latest('id')->first();
         $lastNSR = $lastRecord ? intval($lastRecord->nsr) : 0;
-        
+
         return str_pad($lastNSR + 1, 10, '0', STR_PAD_LEFT);
     }
 

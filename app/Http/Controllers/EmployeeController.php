@@ -31,8 +31,8 @@ class EmployeeController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('cpf', 'like', "%{$search}%")
-                  ->orWhere('registration_number', 'like', "%{$search}%");
+                    ->orWhere('cpf', 'like', "%{$search}%")
+                    ->orWhere('registration_number', 'like', "%{$search}%");
             });
         }
 
@@ -108,8 +108,8 @@ class EmployeeController extends Controller
     public function show(Employee $employee): View
     {
         $employee->load([
-            'company', 
-            'department', 
+            'company',
+            'department',
             'timeRecords' => function ($query) {
                 $query->latest()->limit(10);
             },

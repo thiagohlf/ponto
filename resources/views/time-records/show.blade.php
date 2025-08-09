@@ -200,6 +200,51 @@
                                     <p class="mt-1 text-sm text-gray-900">{{ $timeRecord->observations }}</p>
                                 </div>
                             @endif
+
+                            @if($timeRecord->attachments && count($timeRecord->attachments) > 0)
+                                <div class="mt-6 pt-6 border-t border-gray-200">
+                                    <label class="block text-sm font-medium text-gray-700 mb-3">Documentos Anexados</label>
+                                    <div class="space-y-2">
+                                        @foreach($timeRecord->attachments as $attachment)
+                                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                                                <div class="flex items-center space-x-3">
+                                                    <div class="flex-shrink-0">
+                                                        @if(str_contains($attachment['mime_type'], 'pdf'))
+                                                            <svg class="h-8 w-8 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+                                                            </svg>
+                                                        @elseif(str_contains($attachment['mime_type'], 'image'))
+                                                            <svg class="h-8 w-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                                                            </svg>
+                                                        @else
+                                                            <svg class="h-8 w-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                                                            </svg>
+                                                        @endif
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-sm font-medium text-gray-900">{{ $attachment['original_name'] }}</p>
+                                                        <p class="text-xs text-gray-500">
+                                                            {{ number_format($attachment['size'] / 1024, 1) }} KB • 
+                                                            Enviado em {{ \Carbon\Carbon::parse($attachment['uploaded_at'])->format('d/m/Y H:i') }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-shrink-0">
+                                                    <a href="{{ route('time-records.attachment.download', [$timeRecord, $attachment['filename']]) }}" 
+                                                       class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                                        <svg class="-ml-0.5 mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                        </svg>
+                                                        Baixar
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
 
@@ -223,7 +268,7 @@
                                 <div class="mt-4">
                                     <a href="https://www.google.com/maps?q={{ $timeRecord->latitude }},{{ $timeRecord->longitude }}" 
                                        target="_blank" 
-                                       class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                       class="inline-flex items-center px-3 py-2 border border-green-700 shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-green-800 hover:bg-green-900">
                                         <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>

@@ -5,9 +5,11 @@
                 {{ __('Empresas') }}
             </h2>
             @can('gerenciar_empresas')
-                <a href="{{ route('companies.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                    Nova Empresa
-                </a>
+                @if(!$hasCompany)
+                    <a href="{{ route('companies.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Nova Empresa
+                    </a>
+                @endif
             @endcan
         </div>
     </x-slot>
@@ -131,15 +133,17 @@
                             <h3 class="mt-2 text-sm font-medium text-gray-900">Nenhuma empresa cadastrada</h3>
                             <p class="mt-1 text-sm text-gray-500">Comece cadastrando a primeira empresa do sistema.</p>
                             @can('gerenciar_empresas')
-                                <div class="mt-6">
-                                    <a href="{{ route('companies.create') }}" 
-                                       class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                        </svg>
-                                        Nova Empresa
-                                    </a>
-                                </div>
+                                @if(!$hasCompany)
+                                    <div class="mt-6">
+                                        <a href="{{ route('companies.create') }}" 
+                                           class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                            <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                            </svg>
+                                            Nova Empresa
+                                        </a>
+                                    </div>
+                                @endif
                             @endcan
                         </div>
                     @endif

@@ -17,7 +17,8 @@
             <!-- Filtros -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-6">
-                    <form method="GET" action="{{ route('time-records.index') }}" class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <form method="GET" action="{{ route('time-records.index') }}" class="grid grid-cols-1 {{ $employees->count() > 0 ? 'md:grid-cols-6' : 'md:grid-cols-5' }} gap-4">
+                        @if($employees->count() > 0)
                         <div>
                             <label for="employee_id" class="block text-sm font-medium text-gray-700">Funcionário</label>
                             <select name="employee_id" id="employee_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -29,6 +30,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endif
 
                         <div>
                             <label for="time_clock_id" class="block text-sm font-medium text-gray-700">Relógio</label>
@@ -75,7 +77,7 @@
                             </select>
                         </div>
 
-                        <div class="md:col-span-6 flex justify-end space-x-2">
+                        <div class="{{ $employees->count() > 0 ? 'md:col-span-6' : 'md:col-span-5' }} flex justify-end space-x-2">
                             <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                                 Filtrar
                             </button>

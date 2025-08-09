@@ -17,44 +17,86 @@ class DashboardController extends Controller
     /**
      * Show the application dashboard.
      */
-    public function index(): View
+    public function index()
     {
-        // Estatísticas gerais
-        $totalEmployees = Employee::active()->count();
-        $totalCompanies = Company::active()->count();
-        $totalTimeClocks = TimeClock::active()->count();
+        $user = auth()->user();
         
-        // Registros de hoje
-        $todayRecords = TimeRecord::whereDate('record_date', today())->count();
+        // Se o usuário não for supervisor ou acima, redirecionar para registro de ponto
+        if (!$user->isSupervisor() && !$user->isHR() && !$user->isAdmin()) {
+            return redirect()->route('time-clock.register');
+        }
         
-        // Funcionários presentes hoje (que fizeram entrada mas não saída)
-        $presentEmployees = $this->getPresentEmployees();
-        
-        // Ausências pendentes de aprovação
-        $pendingAbsences = Absence::pending()->count();
-        
-        // Horas extras pendentes
-        $pendingOvertime = Overtime::pending()->count();
-        
-        // Últimos registros de ponto
-        $recentTimeRecords = TimeRecord::with(['employee', 'timeClock'])
-            ->latest('full_datetime')
-            ->limit(10)
-            ->get();
-        
-        // Relógios offline
-        $offlineClocks = TimeClock::where('status', 'offline')->count();
-        
-        // Estatísticas da semana
-        $weekStats = $this->getWeekStats();
-        
-        // Aniversariantes do mês
-        $birthdayEmployees = Employee::active()
-            ->whereMonth('birth_date', now()->month)
-            ->whereDay('birth_date', '>=', now()->day)
-            ->orderBy('birth_date')
-            ->limit(5)
-            ->get();
+        // Estatísticas gerais - apenas para supervisores ou acima
+        if ($user->isSupervisor() || $user->isHR() || $user->isAdmin()) {
+            $totalEmployees = Employee::active()->count();
+            $totalCompanies = Company::active()->count();
+            $totalTimeClocks = TimeClock::active()->count();
+            $todayRecords = TimeRecord::whereDate('record_date', today())->count();
+            $presentEmployees = $this->getPresentEmployees();
+            $pendingAbsences = Absence::pending()->count();
+            $pendingOvertime = Overtime::pending()->count();
+            
+            // Últimos registros de ponto - apenas para supervisores ou acima
+            $recentTimeRecords = TimeRecord::with(['employee', 'timeClock'])
+                ->latest('full_datetime')
+                ->limit(10)
+                ->get();
+            
+            // Status do sistema - apenas para supervisores ou acima
+            $offlineClocks = TimeClock::where('status', 'offline')->count();
+            $weekStats = $this->getWeekStats();
+            
+            // Aniversariantes do mês
+            $birthdayEmployees = Employee::active()
+                ->whereMonth('birth_date', now()->month)
+                ->whereDay('birth_date', '>=', now()->day)
+                ->orderBy('birth_date')
+                ->limit(5)
+                ->get();
+        } else {
+            // Para funcionários comuns - apenas dados pessoais
+            $employee = $user->employee;
+            
+            if ($employee) {
+                // Apenas registros próprios do funcionário
+                $todayRecords = TimeRecord::where('employee_id', $employee->id)
+                    ->whereDate('record_date', today())
+                    ->count();
+                
+                // Últimos registros próprios
+                $recentTimeRecords = TimeRecord::with(['employee', 'timeClock'])
+                    ->where('employee_id', $employee->id)
+                    ->latest('full_datetime')
+                    ->limit(5)
+                    ->get();
+                
+                // Verificar se está presente hoje
+                $lastRecord = TimeRecord::where('employee_id', $employee->id)
+                    ->whereDate('record_date', today())
+                    ->latest('full_datetime')
+                    ->first();
+                
+                $presentEmployees = 0;
+                if ($lastRecord && in_array($lastRecord->record_type, ['entry', 'meal_end'])) {
+                    $presentEmployees = 1; // Ele mesmo está presente
+                }
+            } else {
+                // Se não tem funcionário associado
+                $todayRecords = 0;
+                $recentTimeRecords = collect();
+                $presentEmployees = 0;
+            }
+            
+            // Dados não disponíveis para funcionários comuns
+            $totalEmployees = null;
+            $totalCompanies = null;
+            $totalTimeClocks = null;
+            $pendingAbsences = null;
+            $pendingOvertime = null;
+            $offlineClocks = null;
+            $weekStats = null;
+            $birthdayEmployees = collect();
+        }
 
         return view('dashboard', compact(
             'totalEmployees',
@@ -136,29 +178,62 @@ class DashboardController extends Controller
      */
     public function apiData(): array
     {
-        return [
-            'employees' => [
-                'total' => Employee::count(),
-                'active' => Employee::active()->count(),
-                'present_today' => $this->getPresentEmployees(),
-            ],
-            'time_records' => [
-                'today' => TimeRecord::whereDate('record_date', today())->count(),
-                'this_week' => TimeRecord::whereBetween('record_date', [
-                    now()->startOfWeek(),
-                    now()->endOfWeek()
-                ])->count(),
-            ],
-            'pending_approvals' => [
-                'absences' => Absence::pending()->count(),
-                'overtime' => Overtime::pending()->count(),
-                'time_records' => TimeRecord::where('status', 'pending_approval')->count(),
-            ],
-            'system_status' => [
-                'online_clocks' => TimeClock::where('status', 'online')->count(),
-                'offline_clocks' => TimeClock::where('status', 'offline')->count(),
-                'maintenance_clocks' => TimeClock::where('status', 'maintenance')->count(),
-            ]
-        ];
+        $user = auth()->user();
+        
+        if ($user->isSupervisor() || $user->isHR() || $user->isAdmin()) {
+            // Dados completos para supervisores ou acima
+            return [
+                'employees' => [
+                    'total' => Employee::count(),
+                    'active' => Employee::active()->count(),
+                    'present_today' => $this->getPresentEmployees(),
+                ],
+                'time_records' => [
+                    'today' => TimeRecord::whereDate('record_date', today())->count(),
+                    'this_week' => TimeRecord::whereBetween('record_date', [
+                        now()->startOfWeek(),
+                        now()->endOfWeek()
+                    ])->count(),
+                ],
+                'pending_approvals' => [
+                    'absences' => Absence::pending()->count(),
+                    'overtime' => Overtime::pending()->count(),
+                    'time_records' => TimeRecord::where('status', 'pending_approval')->count(),
+                ],
+                'system_status' => [
+                    'online_clocks' => TimeClock::where('status', 'online')->count(),
+                    'offline_clocks' => TimeClock::where('status', 'offline')->count(),
+                    'maintenance_clocks' => TimeClock::where('status', 'maintenance')->count(),
+                ]
+            ];
+        } else {
+            // Dados limitados para funcionários comuns
+            $employee = $user->employee;
+            
+            if ($employee) {
+                $todayRecords = TimeRecord::where('employee_id', $employee->id)
+                    ->whereDate('record_date', today())
+                    ->count();
+                
+                $weekRecords = TimeRecord::where('employee_id', $employee->id)
+                    ->whereBetween('record_date', [
+                        now()->startOfWeek(),
+                        now()->endOfWeek()
+                    ])->count();
+            } else {
+                $todayRecords = 0;
+                $weekRecords = 0;
+            }
+            
+            return [
+                'time_records' => [
+                    'today' => $todayRecords,
+                    'this_week' => $weekRecords,
+                ],
+                'personal_status' => [
+                    'has_employee_record' => $employee !== null,
+                ]
+            ];
+        }
     }
 }

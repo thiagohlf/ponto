@@ -10,6 +10,22 @@
                        class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
                         Exportar CSV
                     </a>
+                    
+                    @if(request()->hasAny(['start_date', 'end_date']))
+                        @if(request('employee_id'))
+                            <!-- PDF Individual -->
+                            <a href="{{ route('reports.pdf.timesheet', request()->query()) }}" 
+                               class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                📄 Gerar PDF Individual
+                            </a>
+                        @else
+                            <!-- PDF de Todos -->
+                            <a href="{{ route('reports.pdf.all-timesheets', request()->query()) }}" 
+                               class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                📁 Gerar PDFs de Todos
+                            </a>
+                        @endif
+                    @endif
                 @endcan
                 <a href="{{ route('reports.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                     Voltar
@@ -127,9 +143,19 @@
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Status
                                             </th>
+                                            @can('exportar_relatorios')
+                                                @if(!request('employee_id'))
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Ações
+                                                    </th>
+                                                @endif
+                                            @endcan
                                         </tr>
                                     </thead>
                                     <tbody class="bg-white divide-y divide-gray-200">
+                                        @php
+                                            $processedEmployees = [];
+                                        @endphp
                                         @foreach($timeRecords as $record)
                                             <tr class="hover:bg-gray-50">
                                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -199,11 +225,55 @@
                                                         </span>
                                                     @endif
                                                 </td>
+                                                @can('exportar_relatorios')
+                                                    @if(!request('employee_id'))
+                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                            @if(!in_array($record->employee->id, $processedEmployees))
+                                                                @php $processedEmployees[] = $record->employee->id; @endphp
+                                                                <a href="{{ route('reports.pdf.timesheet', array_merge(request()->query(), ['employee_id' => $record->employee->id])) }}" 
+                                                                   class="inline-flex items-center px-3 py-1 border border-transparent text-xs leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                                                    📄 PDF
+                                                                </a>
+                                                            @endif
+                                                        </td>
+                                                    @endif
+                                                @endcan
                                             </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
                             </div>
+
+                            @if(!request('employee_id') && $timeRecords->count() > 0)
+                                @can('exportar_relatorios')
+                                    <!-- Seção de PDFs Individuais -->
+                                    <div class="mt-8 border-t pt-6">
+                                        <h4 class="text-lg font-medium text-gray-900 mb-4">📄 Gerar PDF Individual por Funcionário</h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            @php
+                                                $uniqueEmployees = $timeRecords->groupBy('employee_id')->map(function($records) {
+                                                    return $records->first()->employee;
+                                                });
+                                            @endphp
+                                            @foreach($uniqueEmployees as $employee)
+                                                <div class="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+                                                    <div>
+                                                        <div class="font-medium text-gray-900">{{ $employee->name }}</div>
+                                                        <div class="text-sm text-gray-500">{{ $employee->registration_number }}</div>
+                                                        <div class="text-xs text-gray-400">
+                                                            {{ $timeRecords->where('employee_id', $employee->id)->count() }} registros
+                                                        </div>
+                                                    </div>
+                                                    <a href="{{ route('reports.pdf.timesheet', array_merge(request()->query(), ['employee_id' => $employee->id])) }}" 
+                                                       class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                                        📄 Gerar PDF
+                                                    </a>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endcan
+                            @endif
 
                             <!-- Informações do Relatório -->
                             <div class="mt-6 text-sm text-gray-500">

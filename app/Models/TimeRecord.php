@@ -22,6 +22,7 @@ class TimeRecord extends Model
         'longitude',
         'status',
         'observations',
+        'attachments',
         'original_datetime',
         'change_justification',
         'changed_by',
@@ -34,6 +35,7 @@ class TimeRecord extends Model
         'full_datetime' => 'datetime',
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
+        'attachments' => 'array',
         'original_datetime' => 'datetime',
         'changed_at' => 'datetime',
     ];

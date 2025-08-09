@@ -41,8 +41,8 @@
                         </div>
                     </div>
 
-                    <!-- Botão de Registro -->
-                    <div class="text-center mb-8">
+                    <!-- Botões de Ação -->
+                    <div class="text-center mb-8 space-x-4">
                         <button id="register-btn" 
                                 class="font-bold rounded-lg text-xl shadow-lg transform transition-all duration-200 hover:scale-105"
                                 style="background-color: #16a34a; color: white; border: none; cursor: pointer; display: inline-flex; align-items: center; white-space: nowrap; padding: 12px 37px;"
@@ -53,6 +53,17 @@
                             </svg>
                             Registrar Ponto
                         </button>
+                        
+                        <a href="{{ route('time-records.index') }}" 
+                           class="font-bold rounded-lg text-xl shadow-lg transform transition-all duration-200 hover:scale-105 inline-flex items-center"
+                           style="background-color: #2563eb; color: white; text-decoration: none; white-space: nowrap; padding: 12px 37px;"
+                           onmouseover="this.style.backgroundColor='#1d4ed8'"
+                           onmouseout="this.style.backgroundColor='#2563eb'">
+                            <svg style="width: 24px; height: 24px; margin-right: 8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                            </svg>
+                            Ver Meus Registros
+                        </a>
                     </div>
 
                     <!-- Mensagens -->
