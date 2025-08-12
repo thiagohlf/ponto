@@ -1,9 +1,12 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Dashboard - Sistema de Ponto Eletrônico') }}
-        </h2>
-    </x-slot>
+@extends('layouts.app')
+
+@section('header')
+    <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+        {{ __('Dashboard - Sistema de Ponto Eletrônico') }}
+    </h2>
+@endsection
+
+@section('content')
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -202,7 +205,7 @@
                                 <div class="mb-4">
                                     <div class="flex items-center justify-between">
                                         <span class="text-sm font-medium text-gray-700">Relógios de Ponto</span>
-                                        <span class="text-sm text-gray-500">{{ $totalTimeClocks }} total</span>
+                                        <span class="text-sm text-gray-500">Sistema Web</span>
                                     </div>
                                     @if ($offlineClocks > 0)
                                         <div class="mt-1 text-sm text-red-600">
@@ -374,4 +377,4 @@
                 </div>
             </div>
         </div>
-    </x-app-layout>
+@endsection

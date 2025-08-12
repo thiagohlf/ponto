@@ -9,7 +9,6 @@ class TimeRecord extends Model
 {
     protected $fillable = [
         'employee_id',
-        'time_clock_id',
         'record_date',
         'record_time',
         'full_datetime',
@@ -18,26 +17,21 @@ class TimeRecord extends Model
         'nsr',
         'digital_signature',
         'hash_verification',
-        'latitude',
-        'longitude',
         'status',
         'observations',
+        'change_data',
+        'ip_address',
+        'user_agent',
+        'device_info',
         'attachments',
-        'original_datetime',
-        'change_justification',
-        'changed_by',
-        'changed_at',
     ];
 
     protected $casts = [
         'record_date' => 'date',
         'record_time' => 'datetime:H:i:s',
         'full_datetime' => 'datetime',
-        'latitude' => 'decimal:8',
-        'longitude' => 'decimal:8',
+        'change_data' => 'json',
         'attachments' => 'array',
-        'original_datetime' => 'datetime',
-        'changed_at' => 'datetime',
     ];
 
     // Relacionamentos
@@ -46,14 +40,15 @@ class TimeRecord extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    public function timeClock(): BelongsTo
+    // Relacionamentos polimórficos
+    public function locations()
     {
-        return $this->belongsTo(TimeClock::class);
+        return $this->morphMany(Location::class, 'locatable');
     }
 
-    public function changedBy(): BelongsTo
+    public function approvals()
     {
-        return $this->belongsTo(User::class, 'changed_by');
+        return $this->morphMany(Approval::class, 'approvable');
     }
 
     // Scopes
@@ -100,7 +95,27 @@ class TimeRecord extends Model
 
     public function wasManuallyChanged()
     {
-        return !is_null($this->original_datetime);
+        return !is_null($this->change_data);
+    }
+
+    public function getOriginalDateTime()
+    {
+        return $this->change_data['original_datetime'] ?? null;
+    }
+
+    public function getChangeJustification()
+    {
+        return $this->change_data['change_justification'] ?? null;
+    }
+
+    public function getChangedBy()
+    {
+        return $this->change_data['changed_by'] ?? null;
+    }
+
+    public function getChangedAt()
+    {
+        return $this->change_data['changed_at'] ?? null;
     }
 
     public function isValid()

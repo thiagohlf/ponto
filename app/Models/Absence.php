@@ -14,15 +14,8 @@ class Absence extends Model
         'total_days',
         'absence_type',
         'justification',
-        'document_number',
-        'document_path',
-        'doctor_name',
-        'doctor_crm',
-        'medical_code',
+        'medical_certificate_id',
         'status',
-        'approved_by',
-        'approved_at',
-        'approval_notes',
         'paid_absence',
         'discount_amount',
     ];
@@ -31,7 +24,6 @@ class Absence extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'total_days' => 'integer',
-        'approved_at' => 'datetime',
         'paid_absence' => 'boolean',
         'discount_amount' => 'decimal:2',
     ];
@@ -42,9 +34,15 @@ class Absence extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    public function approvedBy(): BelongsTo
+    public function medicalCertificate(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(MedicalCertificate::class);
+    }
+
+    // Relacionamentos polimórficos
+    public function approvals()
+    {
+        return $this->morphMany(Approval::class, 'approvable');
     }
 
     // Scopes

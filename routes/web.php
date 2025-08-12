@@ -5,14 +5,14 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
-use App\Http\Controllers\TimeClockController;
+// TimeClockController removido - sistema apenas web
 use App\Http\Controllers\TimeRecordController;
 use App\Http\Controllers\WorkScheduleController;
 use App\Http\Controllers\AbsenceController;
 use App\Http\Controllers\OvertimeController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\TimeClockApiController;
+// TimeClockApiController removido - sistema apenas web
 use Illuminate\Support\Facades\Route;
 
 // Página inicial - redireciona para dashboard se autenticado
@@ -26,7 +26,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->name('dashboard');
 
 // Rotas protegidas por autenticação
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'active.employee'])->group(function () {
 
     // Perfil do usuário (todos podem acessar)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -63,13 +63,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/time-records', [EmployeeController::class, 'timeRecords'])->name('time-records');
             Route::get('/absences', [EmployeeController::class, 'absences'])->name('absences');
             Route::get('/overtime', [EmployeeController::class, 'overtime'])->name('overtime');
+            
+            // Gerenciamento de permissões de usuário (apenas administradores)
+            Route::middleware(['permission:gerenciar_usuarios'])->group(function () {
+                Route::get('/user-permissions', [EmployeeController::class, 'userPermissions'])->name('user-permissions');
+                Route::put('/user-permissions', [EmployeeController::class, 'updateUserPermissions'])->name('user-permissions.update');
+            });
         });
     });
 
-    // === RELÓGIOS DE PONTO === (Administradores e Técnicos)
-    Route::middleware(['permission:gerenciar_relogios'])->group(function () {
-        Route::resource('time-clocks', TimeClockController::class);
-    });
+    // === RELÓGIOS DE PONTO === (Removido - sistema apenas web)
+    // Route::middleware(['permission:gerenciar_relogios'])->group(function () {
+    //     Route::resource('time-clocks', TimeClockController::class);
+    // });
 
     // === REGISTROS DE PONTO ===
     // Solicitação de ajuste (todos os usuários autenticados podem solicitar) - deve vir antes das rotas com parâmetros
@@ -171,11 +177,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // === API PARA DASHBOARD === (todos os usuários autenticados)
     Route::get('/api/dashboard-data', [DashboardController::class, 'apiData'])->name('api.dashboard-data');
 
-    // === REGISTRO DE PONTO === (todos os usuários autenticados)
+    // === REGISTRO DE PONTO === (Movido para TimeRecordController - sistema apenas web)
     Route::prefix('time-clock')->name('time-clock.')->group(function () {
-        Route::get('/register', [TimeClockApiController::class, 'index'])->name('register');
-        Route::post('/register', [TimeClockApiController::class, 'register'])->name('register.store');
-        Route::get('/today-records', [TimeClockApiController::class, 'todayRecords'])->name('today-records');
+        Route::get('/register', [TimeRecordController::class, 'showRegisterForm'])->name('register');
+        Route::post('/register', [TimeRecordController::class, 'webRegister'])->name('register.store');
+        Route::get('/today-records', [TimeRecordController::class, 'todayRecords'])->name('today-records');
     });
 
     // === CONFIGURAÇÕES DO SISTEMA === (apenas administradores)
@@ -190,7 +196,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/backup/download/{filename}', [App\Http\Controllers\SystemConfigController::class, 'downloadBackup'])->name('backup.download');
     });
 });
-
-
 
 require __DIR__ . '/auth.php';

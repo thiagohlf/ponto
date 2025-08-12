@@ -7,7 +7,7 @@ use App\Models\TimeRecord;
 use App\Models\Absence;
 use App\Models\Overtime;
 use App\Models\Company;
-use App\Models\TimeClock;
+// TimeClock removido - sistema apenas web
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Carbon\Carbon;
@@ -30,20 +30,20 @@ class DashboardController extends Controller
         if ($user->isSupervisor() || $user->isHR() || $user->isAdmin()) {
             $totalEmployees = Employee::active()->count();
             $totalCompanies = Company::active()->count();
-            $totalTimeClocks = TimeClock::active()->count();
+            $totalTimeClocks = 0; // Sistema apenas web - sem relógios físicos
             $todayRecords = TimeRecord::whereDate('record_date', today())->count();
             $presentEmployees = $this->getPresentEmployees();
             $pendingAbsences = Absence::pending()->count();
             $pendingOvertime = Overtime::pending()->count();
             
             // Últimos registros de ponto - apenas para supervisores ou acima
-            $recentTimeRecords = TimeRecord::with(['employee', 'timeClock'])
+            $recentTimeRecords = TimeRecord::with(['employee'])
                 ->latest('full_datetime')
                 ->limit(10)
                 ->get();
             
             // Status do sistema - apenas para supervisores ou acima
-            $offlineClocks = TimeClock::where('status', 'offline')->count();
+            $offlineClocks = 0; // Sistema apenas web - sem relógios físicos
             $weekStats = $this->getWeekStats();
             
             // Aniversariantes do mês
@@ -64,7 +64,7 @@ class DashboardController extends Controller
                     ->count();
                 
                 // Últimos registros próprios
-                $recentTimeRecords = TimeRecord::with(['employee', 'timeClock'])
+                $recentTimeRecords = TimeRecord::with(['employee'])
                     ->where('employee_id', $employee->id)
                     ->latest('full_datetime')
                     ->limit(5)
@@ -201,9 +201,9 @@ class DashboardController extends Controller
                     'time_records' => TimeRecord::where('status', 'pending_approval')->count(),
                 ],
                 'system_status' => [
-                    'online_clocks' => TimeClock::where('status', 'online')->count(),
-                    'offline_clocks' => TimeClock::where('status', 'offline')->count(),
-                    'maintenance_clocks' => TimeClock::where('status', 'maintenance')->count(),
+                    'online_clocks' => 0, // Sistema apenas web - sem relógios físicos
+                    'offline_clocks' => 0, // Sistema apenas web - sem relógios físicos
+                    'maintenance_clocks' => 0, // Sistema apenas web - sem relógios físicos
                 ]
             ];
         } else {

@@ -41,11 +41,10 @@ return new class extends Migration
             $table->boolean('compensated')->default(false); // Já foi compensado
             $table->text('compensation_notes')->nullable(); // Observações da compensação
             
-            // Justificativas e aprovações
-            $table->text('work_justification')->nullable(); // Por que trabalhou no feriado
-            $table->boolean('pre_authorized')->default(false); // Trabalho pré-autorizado
-            $table->foreignId('authorized_by')->nullable()->constrained('users')->onDelete('set null');
-            $table->timestamp('authorized_at')->nullable();
+            // Justificativas (aprovações centralizadas na tabela approvals via polimorfismo)
+            $table->text('work_justification')->nullable(); // Justificativa para trabalhar no feriado
+            
+            // Nota: Dados de aprovação movidos para approvals table (polimórfica)
             
             // Status de pagamento
             $table->enum('payment_status', ['pending', 'calculated', 'paid'])->default('pending');

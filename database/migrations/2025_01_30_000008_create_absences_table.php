@@ -23,38 +23,33 @@ return new class extends Migration
             
             // Tipo de ausência
             $table->enum('absence_type', [
-                'sick_leave', // Atestado médico
-                'vacation', // Férias
-                'maternity_leave', // Licença maternidade
-                'paternity_leave', // Licença paternidade
-                'bereavement', // Luto (Art. 473, I CLT)
-                'marriage', // Casamento (Art. 473, II CLT)
-                'blood_donation', // Doação de sangue (Art. 473, IV CLT)
-                'military_service', // Serviço militar
-                'jury_duty', // Júri (Art. 473, VII CLT)
-                'witness_testimony', // Testemunha (Art. 473, VI CLT)
-                'union_activity', // Atividade sindical
-                'study_leave', // Licença para estudos
-                'unpaid_leave', // Licença sem vencimento
-                'unjustified', // Falta injustificada
-                'other' // Outros motivos
+                'atestado_medico', // Atestado médico
+                'ferias', // Férias
+                'licenca_maternidade', // Licença maternidade
+                'licenca_paternidade', // Licença paternidade
+                'luto', // Luto (Art. 473, I CLT)
+                'casamento', // Casamento (Art. 473, II CLT)
+                'doacao_sangue', // Doação de sangue (Art. 473, IV CLT)
+                'servico_militar', // Serviço militar
+                'juri', // Júri (Art. 473, VII CLT)
+                'testemunha', // Testemunha (Art. 473, VI CLT)
+                'atividade_sindical', // Atividade sindical
+                'licenca_estudos', // Licença para estudos
+                'licenca_sem_vencimento', // Licença sem vencimento
+                'falta_injustificada', // Falta injustificada
+                'outros' // Outros motivos
             ]);
             
             // Detalhes da justificativa
             $table->text('justification')->nullable(); // Justificativa detalhada
-            $table->string('document_number')->nullable(); // Número do documento (atestado, etc.)
-            $table->string('document_path')->nullable(); // Caminho do arquivo do documento
+            $table->foreignId('medical_certificate_id')->nullable()->constrained()->onDelete('set null'); // Relação com atestado médico
             
-            // Informações médicas (se aplicável)
-            $table->string('doctor_name')->nullable(); // Nome do médico
-            $table->string('doctor_crm')->nullable(); // CRM do médico
-            $table->string('medical_code')->nullable(); // CID ou código médico
+            // Nota: Campos médicos movidos para medical_certificates table
             
-            // Status e aprovação
+            // Status (aprovação centralizada na tabela approvals via polimorfismo)
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
-            $table->timestamp('approved_at')->nullable();
-            $table->text('approval_notes')->nullable();
+            
+            // Nota: Dados de aprovação movidos para approvals table (polimórfica)
             
             // Impacto financeiro
             $table->boolean('paid_absence')->default(true); // Ausência remunerada

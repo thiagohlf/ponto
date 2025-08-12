@@ -21,18 +21,16 @@ return new class extends Migration
             $table->date('start_date'); // Data de início da vigência
             $table->date('end_date')->nullable(); // Data de fim (null = indefinido)
             
-            // Configurações específicas do funcionário
+            // Configurações específicas do funcionário (sobrescreve work_schedules)
             $table->json('custom_schedule')->nullable(); // Horário personalizado (sobrescreve o padrão)
-            $table->integer('custom_tolerance')->nullable(); // Tolerância específica (minutos)
+            $table->integer('custom_tolerance')->nullable(); // Tolerância específica (substitui work_schedules.general_tolerance)
             
             // Exceções e observações
             $table->text('notes')->nullable(); // Observações sobre este horário
             $table->boolean('temporary')->default(false); // Horário temporário
             $table->string('reason')->nullable(); // Motivo da mudança de horário
             
-            // Aprovação
-            $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
-            $table->timestamp('approved_at')->nullable();
+            // Nota: Dados de aprovação movidos para approvals table (polimórfica)
             
             $table->boolean('active')->default(true);
             $table->timestamps();

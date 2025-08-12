@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkSchedule extends Model
 {
@@ -27,11 +28,14 @@ class WorkSchedule extends Model
         'meal_break_end',
         'entry_tolerance',
         'exit_tolerance',
+        'general_tolerance',
         'flexible_schedule',
         'flexible_minutes',
         'allows_overtime',
         'max_daily_overtime',
         'compensatory_time',
+        'created_by',
+        'updated_by',
         'active',
     ];
 
@@ -51,6 +55,7 @@ class WorkSchedule extends Model
         'meal_break_end' => 'datetime:H:i:s',
         'entry_tolerance' => 'integer',
         'exit_tolerance' => 'integer',
+        'general_tolerance' => 'integer',
         'flexible_schedule' => 'boolean',
         'flexible_minutes' => 'integer',
         'allows_overtime' => 'boolean',
@@ -68,8 +73,23 @@ class WorkSchedule extends Model
     public function employees(): BelongsToMany
     {
         return $this->belongsToMany(Employee::class, 'employee_work_schedule')
-            ->withPivot(['start_date', 'end_date', 'custom_schedule', 'custom_tolerance', 'notes', 'temporary', 'reason', 'approved_by', 'approved_at', 'active'])
+            ->withPivot(['start_date', 'end_date', 'custom_schedule', 'custom_tolerance', 'notes', 'temporary', 'reason', 'active'])
             ->withTimestamps();
+    }
+
+    public function employeesWithDefaultSchedule(): HasMany
+    {
+        return $this->hasMany(Employee::class);
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     // Scopes

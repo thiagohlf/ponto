@@ -12,7 +12,8 @@ class Employee extends Model
     protected $fillable = [
         'company_id',
         'department_id',
-        'name',
+        'user_id',
+        'work_schedule_id',
         'cpf',
         'rg',
         'birth_date',
@@ -23,21 +24,9 @@ class Employee extends Model
         'dismissal_date',
         'position',
         'salary',
-        'email',
-        'phone',
-        'address',
-        'number',
-        'complement',
-        'neighborhood',
-        'city',
-        'state',
-        'zip_code',
+        'address_data',
         'exempt_time_control',
-        'weekly_hours',
-        'has_meal_break',
-        'meal_break_minutes',
         'fingerprint_template',
-        'rfid_card',
         'photo_path',
         'active',
     ];
@@ -47,10 +36,8 @@ class Employee extends Model
         'admission_date' => 'date',
         'dismissal_date' => 'date',
         'salary' => 'decimal:2',
+        'address_data' => 'json',
         'exempt_time_control' => 'boolean',
-        'has_meal_break' => 'boolean',
-        'weekly_hours' => 'integer',
-        'meal_break_minutes' => 'integer',
         'active' => 'boolean',
     ];
 
@@ -63,6 +50,16 @@ class Employee extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function workSchedule(): BelongsTo
+    {
+        return $this->belongsTo(WorkSchedule::class);
     }
 
     public function timeRecords(): HasMany
@@ -80,34 +77,36 @@ class Employee extends Model
         return $this->hasMany(Overtime::class);
     }
 
-    // Relacionamentos Many-to-Many (tabelas pivot)
-    public function timeClocks(): BelongsToMany
+    public function medicalCertificates(): HasMany
     {
-        return $this->belongsToMany(TimeClock::class, 'employee_time_clock')
-            ->withPivot(['can_register', 'requires_supervisor_approval', 'biometric_template', 'rfid_card_number', 'pin_code', 'access_start_time', 'access_end_time', 'registered_at', 'registered_by', 'active'])
-            ->withTimestamps();
+        return $this->hasMany(MedicalCertificate::class);
     }
+
+    // Relacionamentos Many-to-Many (tabelas pivot)
 
     public function holidays(): BelongsToMany
     {
         return $this->belongsToMany(Holiday::class, 'employee_holiday')
-            ->withPivot(['status', 'work_start_time', 'work_end_time', 'worked_minutes', 'base_salary_day', 'holiday_multiplier', 'calculated_amount', 'compensation_date', 'compensated', 'compensation_notes', 'work_justification', 'pre_authorized', 'authorized_by', 'authorized_at', 'payment_status', 'payment_date'])
+            ->withPivot(['status', 'work_start_time', 'work_end_time', 'worked_minutes', 'base_salary_day', 'holiday_multiplier', 'calculated_amount', 'compensation_date', 'compensated', 'compensation_notes', 'work_justification', 'payment_status', 'payment_date'])
             ->withTimestamps();
-    }
-
-    /**
-     * Relacionamento com User (baseado no email)
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'email', 'email');
     }
 
     public function workSchedules(): BelongsToMany
     {
         return $this->belongsToMany(WorkSchedule::class, 'employee_work_schedule')
-            ->withPivot(['start_date', 'end_date', 'custom_schedule', 'custom_tolerance', 'notes', 'temporary', 'reason', 'approved_by', 'approved_at', 'active'])
+            ->withPivot(['start_date', 'end_date', 'custom_schedule', 'custom_tolerance', 'notes', 'temporary', 'reason', 'active'])
             ->withTimestamps();
+    }
+
+    // Relacionamentos polimórficos
+    public function approvals()
+    {
+        return $this->morphMany(Approval::class, 'approvable');
+    }
+
+    public function locations()
+    {
+        return $this->morphMany(Location::class, 'locatable');
     }
 
     // Scopes

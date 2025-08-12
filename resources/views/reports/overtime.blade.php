@@ -1,5 +1,5 @@
-<x-app-layout>
-    <x-slot name="header">
+@extends('layouts.app')
+    @section('header')
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Relatório de Horas Extras
@@ -8,8 +8,9 @@
                 Voltar
             </a>
         </div>
-    </x-slot>
+    @endsection
 
+    @section('content')
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Filtros -->
@@ -34,7 +35,7 @@
                                 <option value="">Todos os funcionários</option>
                                 @foreach($employees as $employee)
                                     <option value="{{ $employee->id }}" {{ request('employee_id') == $employee->id ? 'selected' : '' }}>
-                                        {{ $employee->name }}
+                                        {{ $employee->user->name }}
                                     </option>
                                 @endforeach
                             </select>
@@ -120,7 +121,7 @@
                                                     {{ $record->work_date->format('d/m/Y') }}
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap">
-                                                    <div class="text-sm font-medium text-gray-900">{{ $record->employee->name }}</div>
+                                                    <div class="text-sm font-medium text-gray-900">{{ $record->employee->user->name }}</div>
                                                     <div class="text-sm text-gray-500">{{ $record->employee->registration_number }}</div>
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -198,4 +199,5 @@
             @endif
         </div>
     </div>
-</x-app-layout>
+    @endsection
+    

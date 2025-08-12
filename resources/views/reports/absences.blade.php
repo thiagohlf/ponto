@@ -1,15 +1,19 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Relatório de Ausências
-            </h2>
-            <a href="{{ route('reports.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                Voltar
-            </a>
-        </div>
-    </x-slot>
+@extends('layouts.app')
 
+@section('header')
+
+    <div class="flex justify-between items-center">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Relatório de Ausências
+        </h2>
+        <a href="{{ route('reports.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            Voltar
+        </a>
+    </div>
+
+@endsection
+
+@section('content')
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Filtros -->
@@ -34,7 +38,7 @@
                                 <option value="">Todos os funcionários</option>
                                 @foreach($employees as $employee)
                                     <option value="{{ $employee->id }}" {{ request('employee_id') == $employee->id ? 'selected' : '' }}>
-                                        {{ $employee->name }}
+                                        {{ $employee->user->name }}
                                     </option>
                                 @endforeach
                             </select>
@@ -125,7 +129,7 @@
                                         @foreach($absences as $absence)
                                             <tr class="hover:bg-gray-50">
                                                 <td class="px-6 py-4 whitespace-nowrap">
-                                                    <div class="text-sm font-medium text-gray-900">{{ $absence->employee->name }}</div>
+                                                    <div class="text-sm font-medium text-gray-900">{{ $absence->employee->user->name }}</div>
                                                     <div class="text-sm text-gray-500">{{ $absence->employee->registration_number }}</div>
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -221,4 +225,4 @@
             @endif
         </div>
     </div>
-</x-app-layout>
+@endsection

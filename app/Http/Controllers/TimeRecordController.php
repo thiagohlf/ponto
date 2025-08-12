@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\TimeRecord;
 use App\Models\Employee;
-use App\Models\TimeClock;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +17,7 @@ class TimeRecordController extends Controller
      */
     public function index(Request $request): View
     {
-        $query = TimeRecord::with(['employee', 'timeClock']);
+        $query = TimeRecord::with(['employee.user']);
         $user = auth()->user();
 
         // Se o usuário não for supervisor ou acima, só pode ver seus próprios registros
@@ -40,9 +39,7 @@ class TimeRecordController extends Controller
             }
         }
 
-        if ($request->filled('time_clock_id')) {
-            $query->where('time_clock_id', $request->time_clock_id);
-        }
+        // Filtro de time_clock_id removido - sistema apenas web
 
         if ($request->filled('date_from')) {
             $query->where('record_date', '>=', $request->date_from);
@@ -69,9 +66,8 @@ class TimeRecordController extends Controller
             $employees = collect(); // Lista vazia
         }
 
-        $timeClocks = TimeClock::active()->get();
-
-        return view('time-records.index', compact('timeRecords', 'employees', 'timeClocks'));
+        // Sistema apenas web - sem relógios de ponto físicos
+        return view('time-records.index', compact('timeRecords', 'employees'));
     }
 
     /**
@@ -93,9 +89,8 @@ class TimeRecordController extends Controller
             $employees = Employee::active()->get();
         }
 
-        $timeClocks = TimeClock::active()->get();
-
-        return view('time-records.create', compact('employees', 'timeClocks'));
+        // Sistema apenas web - sem relógios de ponto físicos
+        return view('time-records.create', compact('employees'));
     }
 
     /**
@@ -107,11 +102,10 @@ class TimeRecordController extends Controller
 
         $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
-            'time_clock_id' => 'nullable|exists:time_clocks,id',
             'record_date' => 'required|date',
             'record_time' => 'required|date_format:H:i',
             'record_type' => 'required|in:entry,exit,meal_start,meal_end,break_start,break_end',
-            'identification_method' => 'required|in:biometric,rfid,pin,facial,manual',
+            'identification_method' => 'required|in:web_login,web_biometric,manual',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'change_justification' => 'required|string|max:1000',
@@ -142,7 +136,7 @@ class TimeRecordController extends Controller
             foreach ($request->file('attachments') as $file) {
                 $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $path = $file->storeAs('time-records/attachments', $filename, 'public');
-                
+
                 $attachments[] = [
                     'original_name' => $file->getClientOriginalName(),
                     'filename' => $filename,
@@ -187,7 +181,7 @@ class TimeRecordController extends Controller
     public function downloadAttachment(TimeRecord $timeRecord, $filename)
     {
         $user = auth()->user();
-        
+
         // Verificar se o usuário tem permissão para ver este registro
         if (!$user->isSupervisor() && !$user->isHR() && !$user->isAdmin()) {
             $employee = $user->employee;
@@ -199,13 +193,13 @@ class TimeRecordController extends Controller
         // Verificar se o arquivo existe nos anexos do registro
         $attachments = $timeRecord->attachments ?? [];
         $attachment = collect($attachments)->firstWhere('filename', $filename);
-        
+
         if (!$attachment) {
             abort(404, 'Arquivo não encontrado.');
         }
 
         $filePath = storage_path('app/public/' . $attachment['path']);
-        
+
         if (!file_exists($filePath)) {
             abort(404, 'Arquivo não encontrado no sistema.');
         }
@@ -228,7 +222,7 @@ class TimeRecordController extends Controller
             }
         }
 
-        $timeRecord->load(['employee', 'timeClock', 'changedBy']);
+        $timeRecord->load(['employee']);
 
         return view('time-records.show', compact('timeRecord'));
     }
@@ -239,9 +233,9 @@ class TimeRecordController extends Controller
     public function edit(TimeRecord $timeRecord): View
     {
         $employees = Employee::active()->get();
-        $timeClocks = TimeClock::active()->get();
+        // Sistema apenas web - sem relógios de ponto físicos
 
-        return view('time-records.edit', compact('timeRecord', 'employees', 'timeClocks'));
+        return view('time-records.edit', compact('timeRecord', 'employees'));
     }
 
     /**
@@ -337,14 +331,108 @@ class TimeRecordController extends Controller
     }
 
     /**
-     * API endpoint for time clock registration
+     * Show the time registration form
+     */
+    public function showRegisterForm(): View
+    {
+        $user = auth()->user();
+        $employee = $user->employee;
+
+        if (!$employee) {
+            return redirect()->route('dashboard')
+                ->with('error', 'Funcionário não encontrado. Entre em contato com o RH.');
+        }
+
+        // Buscar registros de hoje
+        $todayRecords = TimeRecord::where('employee_id', $employee->id)
+            ->whereDate('record_date', today())
+            ->orderBy('full_datetime')
+            ->get();
+
+        return view('time-records.register', compact('employee', 'todayRecords'));
+    }
+
+    /**
+     * Get today's records for the authenticated user
+     */
+    public function todayRecords(): JsonResponse
+    {
+        $user = auth()->user();
+        $employee = $user->employee;
+
+        if (!$employee) {
+            return response()->json(['error' => 'Funcionário não encontrado'], 404);
+        }
+
+        $todayRecords = TimeRecord::where('employee_id', $employee->id)
+            ->whereDate('record_date', today())
+            ->orderBy('full_datetime')
+            ->get()
+            ->map(function ($record) {
+                return [
+                    'id' => $record->id,
+                    'record_time' => $record->record_time->format('H:i'),
+                    'record_type' => $record->record_type,
+                    'status' => $record->status,
+                    'identification_method' => $record->identification_method,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'records' => $todayRecords
+        ]);
+    }
+
+    /**
+     * Web form time registration
+     */
+    public function webRegister(Request $request)
+    {
+        $user = auth()->user();
+        $employee = $user->employee;
+
+        if (!$employee) {
+            return redirect()->back()->with('error', 'Funcionário não encontrado.');
+        }
+
+        try {
+            // Buscar último registro do funcionário hoje para determinar o tipo
+            $lastRecord = TimeRecord::where('employee_id', $employee->id)
+                ->whereDate('record_date', today())
+                ->latest('full_datetime')
+                ->first();
+            //Gera NSR
+                $nsr = $this->generateNSR();
+            // Criar registro de ponto
+            $timeRecord = TimeRecord::create([
+                'employee_id' => $employee->id,
+                'record_date' => now()->toDateString(),
+                'record_time' => now()->toTimeString(),
+                'full_datetime' => now(),
+                'record_type' => $this->determineRecordType($lastRecord),
+                'nsr' => $nsr,
+                'identification_method' => 'web_login',
+                'status' => 'valid',
+                'created_by' => $user->id,
+            ]);
+
+            return redirect()->back()->with('success', 'Ponto registrado com sucesso às ' . now()->format('H:i:s'));
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Erro ao registrar ponto: ' . $e->getMessage());
+        }
+    }
+
+
+
+    /**
+     * API endpoint for web time registration
      */
     public function register(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'employee_identification' => 'required|string',
-            'time_clock_serial' => 'required|string',
-            'identification_method' => 'required|in:biometric,rfid,pin,facial',
+            'identification_method' => 'required|in:web_login,web_biometric,manual',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
         ]);
@@ -352,18 +440,10 @@ class TimeRecordController extends Controller
         // Buscar funcionário
         $employee = Employee::where('cpf', $validated['employee_identification'])
             ->orWhere('registration_number', $validated['employee_identification'])
-            ->orWhere('rfid_card', $validated['employee_identification'])
             ->first();
 
         if (!$employee) {
             return response()->json(['error' => 'Funcionário não encontrado'], 404);
-        }
-
-        // Buscar relógio de ponto
-        $timeClock = TimeClock::where('serial_number', $validated['time_clock_serial'])->first();
-
-        if (!$timeClock) {
-            return response()->json(['error' => 'Relógio de ponto não encontrado'], 404);
         }
 
         // Determinar tipo de marcação baseado no último registro
@@ -379,7 +459,6 @@ class TimeRecordController extends Controller
 
         $timeRecord = TimeRecord::create([
             'employee_id' => $employee->id,
-            'time_clock_id' => $timeClock->id,
             'record_date' => now()->toDateString(),
             'record_time' => now()->toTimeString(),
             'full_datetime' => now(),
@@ -387,10 +466,20 @@ class TimeRecordController extends Controller
             'identification_method' => $validated['identification_method'],
             'nsr' => $nsr,
             'hash_verification' => $this->generateHash($validated, $nsr),
-            'latitude' => $validated['latitude'] ?? null,
-            'longitude' => $validated['longitude'] ?? null,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
             'status' => 'valid',
         ]);
+
+        // Criar registro de localização se fornecido
+        if ($validated['latitude'] && $validated['longitude']) {
+            $timeRecord->locations()->create([
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'source' => 'gps',
+                'recorded_at' => now(),
+            ]);
+        }
 
         return response()->json([
             'success' => true,

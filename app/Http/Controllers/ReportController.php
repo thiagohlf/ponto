@@ -56,7 +56,7 @@ class ReportController extends Controller
         ]);
 
         $user = auth()->user();
-        $query = TimeRecord::with(['employee.company', 'timeClock'])
+        $query = TimeRecord::with(['employee.company'])
             ->whereBetween('record_date', [$request->start_date, $request->end_date]);
 
         // Se o usuário não for supervisor ou acima, só pode ver seus próprios registros
@@ -81,7 +81,8 @@ class ReportController extends Controller
         }
 
         $timeRecords = $query->join('employees', 'time_records.employee_id', '=', 'employees.id')
-            ->orderBy('employees.name')
+            ->join('users', 'employees.user_id', '=', 'users.id')
+            ->orderBy('users.name')
             ->orderBy('time_records.record_date')
             ->orderBy('time_records.record_time')
             ->select('time_records.*')
@@ -350,49 +351,58 @@ class ReportController extends Controller
             'end_date' => 'required|date|after_or_equal:start_date',
             'employee_id' => 'nullable|exists:employees,id',
         ]);
-
+    
         $user = auth()->user();
-        $query = TimeRecord::with(['employee.company', 'timeClock'])
+        
+        // 1. Inicie a query já com os joins necessários.
+        $query = TimeRecord::query()
+            ->join('employees', 'time_records.employee_id', '=', 'employees.id')
+            ->join('users', 'employees.user_id', '=', 'users.id')
+            ->join('companies', 'employees.company_id', '=', 'companies.id')
             ->whereBetween('record_date', [$request->start_date, $request->end_date]);
-
+    
         // Se o usuário não for supervisor ou acima, só pode exportar seus próprios registros
         if (!$user->isSupervisor() && !$user->isHR() && !$user->isAdmin()) {
             $employee = $user->employee;
             if ($employee) {
-                $query->where('employee_id', $employee->id);
+                $query->where('time_records.employee_id', $employee->id);
             } else {
                 $query->whereRaw('1 = 0');
             }
         } else {
             // Apenas supervisores ou acima podem filtrar por funcionário
             if ($request->filled('employee_id')) {
-                $query->where('employee_id', $request->employee_id);
+                $query->where('time_records.employee_id', $request->employee_id);
             }
         }
-
-        $timeRecords = $query->join('employees', 'time_records.employee_id', '=', 'employees.id')
-            ->orderBy('employees.name')
+    
+        // 2. Selecione todas as colunas necessárias, usando aliases.
+        $timeRecords = $query
+            ->orderBy('users.name')
             ->orderBy('time_records.record_date')
             ->orderBy('time_records.record_time')
-            ->select('time_records.*')
+            ->select(
+                'time_records.*',
+                'users.name as employee_name',
+                'employees.cpf as employee_cpf',
+                'companies.name as company_name'
+            )
             ->get();
-
+    
         $filename = 'registros_ponto_' . $request->start_date . '_' . $request->end_date . '.csv';
-
+    
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Expires' => '0',
         ];
-
+    
         $callback = function () use ($timeRecords) {
             $file = fopen('php://output', 'w');
             
-            // Adicionar BOM para UTF-8 (melhora compatibilidade com Excel)
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             
-            // Cabeçalho CSV com separador ponto e vírgula (padrão brasileiro)
             fputcsv($file, [
                 'Data',
                 'Hora',
@@ -406,27 +416,27 @@ class ReportController extends Controller
                 'Status',
                 'Observações'
             ], ';');
-
-            // Dados
+    
+            // 3. Acesse os dados diretamente pelos aliases definidos no select.
             foreach ($timeRecords as $record) {
                 fputcsv($file, [
                     $record->record_date->format('d/m/Y'),
                     \Carbon\Carbon::parse($record->record_time)->format('H:i:s'),
-                    $record->employee->name,
-                    $record->employee->cpf,
-                    $record->employee->company->name,
+                    $record->employee_name, // Usando o alias 'employee_name'
+                    $record->employee_cpf,  // Usando o alias 'employee_cpf'
+                    $record->company_name,  // Usando o alias 'company_name'
                     $this->translateRecordType($record->record_type),
                     $this->translateIdentificationMethod($record->identification_method),
-                    $record->timeClock->name ?? 'N/A',
+                    'Sistema Web',
                     $record->nsr,
                     $this->translateStatus($record->status),
                     $record->observations ?? ''
                 ], ';');
             }
-
+    
             fclose($file);
         };
-
+    
         return response()->stream($callback, 200, $headers);
     }
 
@@ -453,8 +463,7 @@ class ReportController extends Controller
         }
 
         // Buscar registros de ponto do funcionário no período
-        $timeRecords = TimeRecord::with(['timeClock'])
-            ->where('employee_id', $employee->id)
+        $timeRecords = TimeRecord::where('employee_id', $employee->id)
             ->whereBetween('record_date', [$request->start_date, $request->end_date])
             ->orderBy('record_date')
             ->orderBy('record_time')
@@ -528,8 +537,7 @@ class ReportController extends Controller
 
         foreach ($employees as $employee) {
             // Buscar registros de ponto do funcionário no período
-            $timeRecords = TimeRecord::with(['timeClock'])
-                ->where('employee_id', $employee->id)
+            $timeRecords = TimeRecord::where('employee_id', $employee->id)
                 ->whereBetween('record_date', [$request->start_date, $request->end_date])
                 ->orderBy('record_date')
                 ->orderBy('record_time')

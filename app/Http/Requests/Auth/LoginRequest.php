@@ -49,6 +49,19 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Verificar se o funcionário está ativo
+        $user = Auth::user();
+        if ($user && $user->employee && !$user->employee->active) {
+            // Fazer logout imediatamente
+            Auth::logout();
+            
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => 'Sua conta está inativa. Entre em contato com o RH.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

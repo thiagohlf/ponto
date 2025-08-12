@@ -24,12 +24,12 @@ return new class extends Migration
             
             // Tipo de hora extra
             $table->enum('overtime_type', [
-                'daily_overtime', // Hora extra diária (até 2h - Art. 59 CLT)
-                'weekend_work', // Trabalho em fim de semana
-                'holiday_work', // Trabalho em feriado
-                'night_shift', // Adicional noturno (Art. 73 CLT)
-                'compensatory', // Banco de horas
-                'emergency' // Situação de emergência
+                'hora_extra_diaria', // Hora extra diária (até 2h - Art. 59 CLT)
+                'trabalho_fim_semana', // Trabalho em fim de semana
+                'trabalho_feriado', // Trabalho em feriado
+                'adicional_noturno', // Adicional noturno (Art. 73 CLT)
+                'banco_horas', // Banco de horas
+                'emergencia' // Situação de emergência
             ]);
             
             // Cálculos financeiros
@@ -42,11 +42,10 @@ return new class extends Migration
             $table->integer('night_shift_minutes')->default(0); // Minutos no período noturno
             $table->decimal('night_shift_percentage', 5, 2)->default(20.00); // 20% adicional noturno
             
-            // Justificativa e autorização
+            // Justificativa (autorização centralizada na tabela approvals via polimorfismo)
             $table->text('justification'); // Motivo da hora extra
-            $table->boolean('pre_authorized')->default(false); // Pré-autorizada
-            $table->foreignId('authorized_by')->nullable()->constrained('users')->onDelete('set null');
-            $table->timestamp('authorized_at')->nullable();
+            
+            // Nota: Dados de autorização movidos para approvals table (polimórfica)
             
             // Banco de horas (se aplicável)
             $table->boolean('compensatory_time')->default(false); // Vai para banco de horas

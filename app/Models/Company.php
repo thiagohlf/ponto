@@ -13,24 +13,19 @@ class Company extends Model
         'cnpj',
         'state_registration',
         'municipal_registration',
-        'address',
-        'number',
-        'complement',
-        'neighborhood',
-        'city',
-        'state',
-        'zip_code',
-        'phone',
-        'email',
-        'tolerance_minutes',
+        'address_data',
+        'contact_data',
         'requires_justification',
+        'created_by',
+        'updated_by',
         'active',
     ];
 
     protected $casts = [
+        'address_data' => 'json',
+        'contact_data' => 'json',
         'active' => 'boolean',
         'requires_justification' => 'boolean',
-        'tolerance_minutes' => 'integer',
     ];
 
     // Relacionamentos
@@ -44,9 +39,14 @@ class Company extends Model
         return $this->hasMany(Employee::class);
     }
 
-    public function timeClocks(): HasMany
+    public function createdBy()
     {
-        return $this->hasMany(TimeClock::class);
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function workSchedules(): HasMany

@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('time_records', function (Blueprint $table) {
             $table->id();
             $table->foreignId('employee_id')->constrained()->onDelete('cascade');
-            $table->foreignId('time_clock_id')->nullable()->constrained()->onDelete('set null');
+            // Nota: time_clock_id removido - marcação apenas web
             
             // Data e hora da marcação
             $table->date('record_date'); // Data da marcação
@@ -33,42 +33,42 @@ return new class extends Migration
                 'break_end' // Fim de pausa
             ]);
             
-            // Método de identificação usado
+            // Método de identificação usado (apenas web)
             $table->enum('identification_method', [
-                'biometric', // Biometria
-                'rfid', // Cartão RFID
-                'pin', // PIN/Senha
-                'facial', // Reconhecimento facial
-                'manual' // Marcação manual
-            ]);
+                'web_login', // Login web (usuário/senha)
+                'web_biometric', // Biometria via web (se disponível)
+                'manual' // Marcação manual por supervisor
+            ])->default('web_login');
             
             // Dados de segurança e auditoria (Portaria 671/2021)
             $table->string('nsr')->unique(); // Número Sequencial de Registro
             $table->text('digital_signature')->nullable(); // Assinatura digital do registro
             $table->string('hash_verification')->nullable(); // Hash para verificação de integridade
             
-            // Localização (se disponível)
-            $table->decimal('latitude', 10, 8)->nullable();
-            $table->decimal('longitude', 11, 8)->nullable();
+            // Nota: Dados de localização movidos para locations table (polimórfica)
             
             // Status e observações
             $table->enum('status', ['valid', 'invalid', 'pending_approval'])->default('valid');
             $table->text('observations')->nullable(); // Observações sobre a marcação
             
-            // Dados de alteração (se houver)
-            $table->timestamp('original_datetime')->nullable(); // Data/hora original (se foi alterada)
-            $table->text('change_justification')->nullable(); // Justificativa da alteração
-            $table->foreignId('changed_by')->nullable()->constrained('users')->onDelete('set null'); // Quem alterou
-            $table->timestamp('changed_at')->nullable(); // Quando foi alterada
+            // Dados de alteração (centralizados em JSON)
+            $table->json('change_data')->nullable(); // {original_datetime, change_justification, changed_by, changed_at}
+            
+            // Auditoria web (dados do navegador/dispositivo)
+            $table->string('ip_address', 45)->nullable(); // IP do usuário
+            $table->text('user_agent')->nullable(); // User agent do navegador
+            $table->string('device_info')->nullable(); // Informações do dispositivo
             
             $table->timestamps();
             
             // Índices para performance
             $table->index(['employee_id', 'record_date']);
             $table->index(['record_date', 'record_time']);
-            $table->index(['time_clock_id', 'full_datetime']);
+            $table->index('full_datetime');
             $table->index('nsr');
             $table->index('status');
+            $table->index(['identification_method', 'status']);
+            $table->index('ip_address');
         });
     }
 

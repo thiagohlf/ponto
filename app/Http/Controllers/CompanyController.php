@@ -75,7 +75,7 @@ class CompanyController extends Controller
      */
     public function show(Company $company): View
     {
-        $company->load(['departments', 'employees', 'timeClocks']);
+        $company->load(['departments', 'employees']);
 
         return view('companies.show', compact('company'));
     }

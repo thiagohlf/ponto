@@ -33,15 +33,16 @@ return new class extends Migration
             $table->json('saturday_schedule')->nullable();
             $table->json('sunday_schedule')->nullable();
             
-            // Configurações de intervalo
+            // Configurações de intervalo (centralizadas aqui - removidas de employees)
             $table->boolean('has_meal_break')->default(true);
-            $table->integer('meal_break_duration')->default(60); // Em minutos
+            $table->integer('meal_break_minutes')->default(60); // Em minutos
             $table->time('meal_break_start')->nullable(); // Início padrão do intervalo
             $table->time('meal_break_end')->nullable(); // Fim padrão do intervalo
             
-            // Tolerâncias
+            // Tolerâncias (centralizadas aqui - removidas de companies)
             $table->integer('entry_tolerance')->default(10); // Tolerância entrada (minutos)
             $table->integer('exit_tolerance')->default(10); // Tolerância saída (minutos)
+            $table->integer('general_tolerance')->default(10); // Tolerância geral (substitui companies.tolerance_minutes)
             
             // Configurações especiais
             $table->boolean('flexible_schedule')->default(false); // Horário flexível
@@ -52,11 +53,17 @@ return new class extends Migration
             $table->integer('max_daily_overtime')->default(120); // Máximo de hora extra diária (minutos)
             $table->boolean('compensatory_time')->default(false); // Banco de horas
             
+            // Auditoria
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null'); // Quem criou
+            $table->foreignId('updated_by')->nullable()->constrained('users')->onDelete('set null'); // Última modificação
+            
             $table->boolean('active')->default(true);
             $table->timestamps();
             
             // Índices
             $table->index(['company_id', 'active']);
+            $table->index('created_by');
+            $table->index('updated_by');
         });
     }
 
