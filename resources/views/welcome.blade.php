@@ -18,7 +18,7 @@
         <div class="max-w-md mx-auto text-center">
             <h1 class="text-2xl font-bold text-white">Sistema de Ponto</h1>
 
-            @if (Route::has('register') && config('app.registration_enabled', true) && !auth()->check())
+            @if (Route::has('register') && config('app.registration_enabled', true) && !auth()->user())
                 <div class="mt-4">
                     <a href="{{ route('register') }}" class="inline-block py-2 px-4 rounded text-white font-medium"
                         style="background-color: #2563eb; transition: background-color 0.2s; text-decoration: none;"

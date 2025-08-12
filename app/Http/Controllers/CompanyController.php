@@ -15,15 +15,22 @@ class CompanyController extends Controller
     public function index(): View
     {
         $companies = Company::active()->paginate(10);
+        $hasCompany = Company::exists(); // Verificar se já existe alguma empresa
 
-        return view('companies.index', compact('companies'));
+        return view('companies.index', compact('companies', 'hasCompany'));
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create(): View
+    public function create(): View|RedirectResponse
     {
+        // Verificar se já existe uma empresa cadastrada
+        if (Company::exists()) {
+            return redirect()->route('companies.index')
+                ->with('error', 'Já existe uma empresa cadastrada no sistema. Este sistema suporta apenas uma empresa.');
+        }
+
         return view('companies.create');
     }
 
@@ -32,6 +39,12 @@ class CompanyController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        // Verificar se já existe uma empresa cadastrada
+        if (Company::exists()) {
+            return redirect()->route('companies.index')
+                ->with('error', 'Já existe uma empresa cadastrada no sistema. Este sistema suporta apenas uma empresa.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'trade_name' => 'nullable|string|max:255',
@@ -62,7 +75,7 @@ class CompanyController extends Controller
      */
     public function show(Company $company): View
     {
-        $company->load(['departments', 'employees', 'timeClocks']);
+        $company->load(['departments', 'employees']);
 
         return view('companies.show', compact('company'));
     }

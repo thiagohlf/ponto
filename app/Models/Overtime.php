@@ -23,9 +23,6 @@ class Overtime extends Model
         'night_shift_minutes',
         'night_shift_percentage',
         'justification',
-        'pre_authorized',
-        'authorized_by',
-        'authorized_at',
         'compensatory_time',
         'compensation_deadline',
         'compensated',
@@ -45,8 +42,6 @@ class Overtime extends Model
         'night_shift_applicable' => 'boolean',
         'night_shift_minutes' => 'integer',
         'night_shift_percentage' => 'decimal:2',
-        'pre_authorized' => 'boolean',
-        'authorized_at' => 'datetime',
         'compensatory_time' => 'boolean',
         'compensation_deadline' => 'date',
         'compensated' => 'boolean',
@@ -59,9 +54,10 @@ class Overtime extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    public function authorizedBy(): BelongsTo
+    // Relacionamentos polimórficos
+    public function approvals()
     {
-        return $this->belongsTo(User::class, 'authorized_by');
+        return $this->morphMany(Approval::class, 'approvable');
     }
 
     // Scopes
@@ -136,9 +132,9 @@ class Overtime extends Model
         return $this->status === 'paid';
     }
 
-    public function isPreAuthorized()
+    public function getLatestApproval()
     {
-        return $this->pre_authorized;
+        return $this->approvals()->latest()->first();
     }
 
     public function isCompensatory()

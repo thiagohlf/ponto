@@ -1,16 +1,19 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Funcionários') }}
-            </h2>
-            @can('gerenciar_funcionarios')
-                <a href="{{ route('employees.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                    Novo Funcionário
-                </a>
-            @endcan
-        </div>
-    </x-slot>
+@extends('layouts.app')
+
+@section('header')
+    <div class="flex justify-between items-center">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Funcionários') }}
+        </h2>
+        @can('gerenciar_funcionarios')
+            <a href="{{ route('employees.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Novo Funcionário
+            </a>
+        @endcan
+    </div>
+@endsection
+
+@section('content')
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -109,13 +112,13 @@
                                                     <div class="flex-shrink-0 h-10 w-10">
                                                         <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
                                                             <span class="text-sm font-medium text-gray-700">
-                                                                {{ substr($employee->name, 0, 2) }}
+                                                                {{ substr($employee->user->name, 0, 2) }}
                                                             </span>
                                                         </div>
                                                     </div>
                                                     <div class="ml-4">
                                                         <div class="text-sm font-medium text-gray-900">
-                                                            {{ $employee->name }}
+                                                            {{ $employee->user->name }}
                                                         </div>
                                                         <div class="text-sm text-gray-500">
                                                             {{ $employee->email }}
@@ -194,4 +197,4 @@
             </div>
         </div>
     </div>
-</x-app-layout>
+@endsection

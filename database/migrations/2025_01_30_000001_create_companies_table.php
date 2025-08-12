@@ -22,25 +22,27 @@ return new class extends Migration
             $table->string('state_registration')->nullable(); // Inscrição estadual
             $table->string('municipal_registration')->nullable(); // Inscrição municipal
 
-            // Endereço
-            $table->string('address');
-            $table->string('number');
-            $table->string('complement')->nullable();
-            $table->string('neighborhood');
-            $table->string('city');
-            $table->string('state', 2);
-            $table->string('zip_code', 9); // CEP formatado (XXXXX-XXX)
+            // Endereço completo em um campo JSON para flexibilidade
+            $table->json('address_data'); // {street, number, complement, neighborhood, city, state, zip_code}
+            
+            // Contatos em JSON para múltiplos contatos
+            $table->json('contact_data')->nullable(); // {phone, email, mobile, etc}
 
-            // Contato
-            $table->string('phone')->nullable();
-            $table->string('email')->nullable();
-
-            // Configurações do sistema de ponto
-            $table->integer('tolerance_minutes')->default(10); // Tolerância em minutos (Art. 58, §1º CLT)
+            // Configurações globais do sistema de ponto
             $table->boolean('requires_justification')->default(true); // Exige justificativa para alterações
+            
+            // Auditoria
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null'); // Quem criou
+            $table->foreignId('updated_by')->nullable()->constrained('users')->onDelete('set null'); // Última modificação
+            
+            // Nota: tolerance_minutes movido para work_schedules (específico por horário)
             $table->boolean('active')->default(true);
 
             $table->timestamps();
+            
+            // Índices de auditoria
+            $table->index('created_by');
+            $table->index('updated_by');
         });
     }
 

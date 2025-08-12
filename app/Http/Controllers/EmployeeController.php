@@ -31,8 +31,8 @@ class EmployeeController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('cpf', 'like', "%{$search}%")
-                  ->orWhere('registration_number', 'like', "%{$search}%");
+                    ->orWhere('cpf', 'like', "%{$search}%")
+                    ->orWhere('registration_number', 'like', "%{$search}%");
             });
         }
 
@@ -90,10 +90,6 @@ class EmployeeController extends Controller
             'state' => 'nullable|string|size:2',
             'zip_code' => 'nullable|string|size:9',
             'exempt_time_control' => 'boolean',
-            'weekly_hours' => 'required|integer|min:1|max:44',
-            'has_meal_break' => 'boolean',
-            'meal_break_minutes' => 'required|integer|min:30|max:120',
-            'rfid_card' => 'nullable|string|max:50',
         ]);
 
         $employee = Employee::create($validated);
@@ -108,8 +104,8 @@ class EmployeeController extends Controller
     public function show(Employee $employee): View
     {
         $employee->load([
-            'company', 
-            'department', 
+            'company',
+            'department',
             'timeRecords' => function ($query) {
                 $query->latest()->limit(10);
             },
@@ -164,14 +160,37 @@ class EmployeeController extends Controller
             'state' => 'nullable|string|size:2',
             'zip_code' => 'nullable|string|size:9',
             'exempt_time_control' => 'boolean',
-            'weekly_hours' => 'required|integer|min:1|max:44',
-            'has_meal_break' => 'boolean',
-            'meal_break_minutes' => 'required|integer|min:30|max:120',
-            'rfid_card' => 'nullable|string|max:50',
             'active' => 'boolean',
         ]);
 
-        $employee->update($validated);
+        // Separar dados do usuário dos dados do funcionário
+        $userData = [
+            'name' => $validated['name'],
+            'email' => $validated['email'] ?? null,
+        ];
+
+        $employeeData = collect($validated)->except(['name', 'email', 'phone', 'address', 'number', 'complement', 'neighborhood', 'city', 'state', 'zip_code'])->toArray();
+
+        // Criar address_data JSON para os campos de endereço
+        if (isset($validated['address'])) {
+            $employeeData['address_data'] = [
+                'street' => $validated['address'] ?? null,
+                'number' => $validated['number'] ?? null,
+                'complement' => $validated['complement'] ?? null,
+                'neighborhood' => $validated['neighborhood'] ?? null,
+                'city' => $validated['city'] ?? null,
+                'state' => $validated['state'] ?? null,
+                'zip_code' => $validated['zip_code'] ?? null,
+            ];
+        }
+
+        // Atualizar dados do usuário se existir
+        if ($employee->user) {
+            $employee->user->update($userData);
+        }
+
+        // Atualizar dados do funcionário
+        $employee->update($employeeData);
 
         return redirect()->route('employees.show', $employee)
             ->with('success', 'Funcionário atualizado com sucesso!');
@@ -198,7 +217,6 @@ class EmployeeController extends Controller
     public function timeRecords(Employee $employee): View
     {
         $timeRecords = $employee->timeRecords()
-            ->with('timeClock')
             ->latest('full_datetime')
             ->paginate(20);
 
@@ -227,5 +245,129 @@ class EmployeeController extends Controller
             ->paginate(15);
 
         return view('employees.overtime', compact('employee', 'overtime'));
+    }
+
+    /**
+     * Show employee user permissions
+     */
+    public function userPermissions(Employee $employee): View
+    {
+        $user = $employee->user;
+
+        if (!$user) {
+            return redirect()->route('employees.show', $employee)
+                ->with('error', 'Este funcionário não possui usuário associado.');
+        }
+
+        $roles = \Spatie\Permission\Models\Role::all();
+        $permissions = \Spatie\Permission\Models\Permission::all();
+        $user->load(['roles', 'permissions']);
+
+        return view('employees.user-permissions', compact('employee', 'user', 'roles', 'permissions'));
+    }
+
+    /**
+     * Update employee user permissions
+     */
+    public function updateUserPermissions(Request $request, Employee $employee)
+    {
+        // Log simples para verificar se o método está sendo chamado
+        \Log::info('=== MÉTODO updateUserPermissions CHAMADO ===');
+        \Log::info('Request method: ' . $request->method());
+        \Log::info('Request URL: ' . $request->fullUrl());
+        \Log::info('All request data:', $request->all());
+        \Log::info('Query parameters:', $request->query());
+        \Log::info('Has manage_role: ' . ($request->query('manage_role') ?: 'null'));
+        
+        $user = $employee->user;
+
+        if (!$user) {
+            return redirect()->route('employees.show', $employee)
+                ->with('error', 'Este funcionário não possui usuário associado.');
+        }
+
+        // Verificar se está gerenciando permissões de um role específico
+        if ($request->has('manage_role')) {
+            \Log::info('Chamando updateRolePermissions');
+            return $this->updateRolePermissions($request);
+        }
+
+        // Caso contrário, atualizar roles do usuário
+        $validated = $request->validate([
+            'roles' => 'nullable|array',
+            'roles.*' => 'exists:roles,name'
+        ]);
+
+        // Preparar roles para sincronização (remover valores vazios)
+        $rolesToSync = isset($validated['roles']) ? array_filter($validated['roles']) : [];
+
+        // Atualizar apenas os roles - as permissões vêm através dos roles
+        $user->syncRoles($rolesToSync);
+
+        return redirect()->route('employees.user-permissions', $employee)
+            ->with('success', 'Perfis do usuário atualizados com sucesso!');
+    }
+
+    /**
+     * Update role permissions
+     */
+    private function updateRolePermissions(Request $request)
+    {
+        // Log para debug
+        \Log::info('=== ATUALIZANDO PERMISSÕES DO ROLE ===');
+        \Log::info('Todos os dados da requisição:', $request->all());
+        
+        // O role_id agora vem no corpo da requisição (manage_role)
+        $roleId = $request->input('manage_role');
+        
+        \Log::info('Role ID recebido:', ['role_id' => $roleId]);
+        
+        if (!$roleId) {
+            \Log::error('Role ID não fornecido');
+            return response()->json([
+                'success' => false,
+                'message' => 'ID do perfil não fornecido'
+            ], 400);
+        }
+
+        try {
+            $validated = $request->validate([
+                'permissions' => 'nullable|array',
+                'permissions.*' => 'exists:permissions,name'
+            ]);
+
+            \Log::info('Dados validados:', $validated);
+
+            $role = \Spatie\Permission\Models\Role::findOrFail($roleId);
+            
+            \Log::info('Role encontrado:', ['name' => $role->name, 'id' => $role->id]);
+
+            // Preparar permissões para sincronização (remover valores vazios)
+            $permissionsToSync = isset($validated['permissions']) ? array_filter($validated['permissions']) : [];
+
+            \Log::info('Permissões para sincronizar:', $permissionsToSync);
+            \Log::info('Permissões antes da sincronização:', $role->permissions->pluck('name')->toArray());
+
+            // Atualizar permissões do role
+            $role->syncPermissions($permissionsToSync);
+            
+            // Verificar resultado
+            $role->refresh();
+            \Log::info('Permissões após sincronização:', $role->permissions->pluck('name')->toArray());
+
+            return redirect()->route('employees.user-permissions', $request->route('employee'))
+                ->with('success', "Permissões do perfil '{$role->name}' atualizadas com sucesso! (" . count($permissionsToSync) . " permissões)");
+            
+        } catch (\Exception $e) {
+            \Log::error('Erro ao atualizar permissões do role:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao atualizar permissões: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

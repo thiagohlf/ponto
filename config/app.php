@@ -29,6 +29,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Backup Configuration
+    |--------------------------------------------------------------------------
+    |
+    | These values control the backup functionality of the application.
+    | backup_enabled determines if automatic backups are enabled.
+    | backup_retention_days sets how many days to keep backup files.
+    |
+    */
+
+    'backup_enabled' => env('BACKUP_ENABLED', true),
+    'backup_retention_days' => env('BACKUP_RETENTION_DAYS', 30),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |
@@ -77,7 +91,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

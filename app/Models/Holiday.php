@@ -48,7 +48,7 @@ class Holiday extends Model
     public function employees(): BelongsToMany
     {
         return $this->belongsToMany(Employee::class, 'employee_holiday')
-            ->withPivot(['status', 'work_start_time', 'work_end_time', 'worked_minutes', 'base_salary_day', 'holiday_multiplier', 'calculated_amount', 'compensation_date', 'compensated', 'compensation_notes', 'work_justification', 'pre_authorized', 'authorized_by', 'authorized_at', 'payment_status', 'payment_date'])
+            ->withPivot(['status', 'work_start_time', 'work_end_time', 'worked_minutes', 'base_salary_day', 'holiday_multiplier', 'calculated_amount', 'compensation_date', 'compensated', 'compensation_notes', 'work_justification', 'payment_status', 'payment_date'])
             ->withTimestamps();
     }
 

@@ -14,6 +14,12 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PermissionSeeder::class,
             SystemSeeder::class,
+            TimeRecordSeeder::class,
+            MedicalCertificateSeeder::class,
+            AbsenceSeeder::class,
+            OvertimeSeeder::class,
+            ApprovalSeeder::class,
+            LocationSeeder::class,
         ]);
     }
 }

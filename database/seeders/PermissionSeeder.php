@@ -27,9 +27,9 @@ class PermissionSeeder extends Seeder
             'gerenciar_funcionarios',
             'visualizar_funcionarios',
             
-            // Relógios de ponto
-            'gerenciar_relogios',
-            'visualizar_relogios',
+            // Horários de trabalho
+            'gerenciar_horarios',
+            'visualizar_horarios',
             
             // Registros de ponto
             'gerenciar_registros_ponto',
@@ -91,7 +91,7 @@ class PermissionSeeder extends Seeder
             'visualizar_departamentos',
             'gerenciar_funcionarios',
             'visualizar_funcionarios',
-            'visualizar_relogios',
+            'visualizar_horarios',
             'gerenciar_registros_ponto',
             'visualizar_registros_ponto',
             'aprovar_registros_ponto',
@@ -115,7 +115,7 @@ class PermissionSeeder extends Seeder
             'visualizar_empresas',
             'visualizar_departamentos',
             'visualizar_funcionarios',
-            'visualizar_relogios',
+            'visualizar_horarios',
             'gerenciar_registros_ponto',
             'visualizar_registros_ponto',
             'aprovar_registros_ponto',
@@ -131,10 +131,10 @@ class PermissionSeeder extends Seeder
             'exportar_relatorios',
         ]);
 
-        // Técnico - gerenciamento de equipamentos
+        // Técnico - gerenciamento de horários e sistema
         $tecnicoRole->givePermissionTo([
-            'gerenciar_relogios',
-            'visualizar_relogios',
+            'gerenciar_horarios',
+            'visualizar_horarios',
             'visualizar_registros_ponto',
             'visualizar_funcionarios',
             'visualizar_departamentos',

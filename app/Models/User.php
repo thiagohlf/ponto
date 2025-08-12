@@ -48,11 +48,44 @@ class User extends Authenticatable
     }
 
     /**
-     * Relacionamento com Employee
+     * Relacionamento com Employee (via user_id)
      */
     public function employee()
     {
-        return $this->hasOne(Employee::class, 'email', 'email');
+        return $this->hasOne(Employee::class);
+    }
+
+    /**
+     * Relacionamentos de auditoria
+     */
+    public function createdCompanies()
+    {
+        return $this->hasMany(Company::class, 'created_by');
+    }
+
+    public function updatedCompanies()
+    {
+        return $this->hasMany(Company::class, 'updated_by');
+    }
+
+    public function createdWorkSchedules()
+    {
+        return $this->hasMany(WorkSchedule::class, 'created_by');
+    }
+
+    public function updatedWorkSchedules()
+    {
+        return $this->hasMany(WorkSchedule::class, 'updated_by');
+    }
+
+    public function requestedApprovals()
+    {
+        return $this->hasMany(Approval::class, 'requested_by');
+    }
+
+    public function approvedRequests()
+    {
+        return $this->hasMany(Approval::class, 'approved_by');
     }
 
     /**
